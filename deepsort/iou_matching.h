@@ -5,7 +5,7 @@
 #include <Eigen>
 #include "linear_assignment.h"
 #include <iterator>
-
+//#define LOG
 class iou_matching{
 private:
     static Eigen::VectorXf _iouFun(const DSBOX &bbox, const DSBOXS &candidates){
@@ -63,7 +63,7 @@ private:
 		}
 		//std::cout << "wh-b:\n" << wh << "wh-e\n" << std::endl;
 		float area_bbox = bbox(0, 2)*bbox(0, 3);
-		
+
 		Eigen::VectorXf re(candidates.rows());
 		for (int i = 0; i < re.rows(); i++) {
 			re(i) = area_intersection(i) / (area_bbox +
@@ -74,8 +74,8 @@ private:
     }
 
 public:
-    static DYNAMICM getCostMatrixByIOU(const std::vector<KalmanTracker> &tracks, 
-                    const std::vector<Detection> &detections, 
+    static DYNAMICM getCostMatrixByIOU(const std::vector<KalmanTracker> &tracks,
+                    const std::vector<Detection> &detections,
                     IDS *track_indicesi=NULL,
                     IDS *detection_indicesi=NULL){
 		IDS track_indices;
@@ -112,14 +112,16 @@ public:
 				DSBOX tmp = detections[detection_indices[k]].tlwh_;
 				candidates.row(k) = tmp;
 			}
-			//std::cout << "mmm" << candidates << "vvvv" << std::endl;
 			Eigen::VectorXf tmpm = _iouFun(bbox, candidates);
-			//std::cout << "tmpm--b" << tmpm << "tmpm--e" << std::endl;
 			auto tmp1 = tmpm.array();
 			auto tmp2 = -(tmp1 - 1);
 			cost_matrix.row(row) = tmp2.matrix();
-			//std::cout << "nnnnn" << cost_matrix << "uuuu" << std::endl;
-		}
+#ifdef LOG
+      std::cout << "mmm" << candidates << "vvvv" << std::endl;
+      std::cout << "tmpm--b" << tmpm << "tmpm--e" << std::endl;
+			std::cout << "nnnnn" << cost_matrix << "uuuu" << std::endl;
+#endif
+    }
 		return cost_matrix;
     }
 };

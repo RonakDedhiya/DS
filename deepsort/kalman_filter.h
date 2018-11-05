@@ -2,7 +2,7 @@
 #ifndef _KKALMANFILTERH_
 #define _KKALMANFILTERH_
 #include <boost/shared_ptr.hpp>
-
+// #define KLOG
 typedef Eigen::Matrix<float, 4, 8, Eigen::RowMajor> UPM;
 
 class KF{

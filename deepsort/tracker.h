@@ -8,6 +8,7 @@
 #include "iou_matching.h"
 #include "FeatureGetter/FeatureGetter.h"
 #include "../NTN.h"
+//#define LOG
 
 DYNAMICM getCostMatrixByNND(const std::vector<KalmanTracker> &kalmanTrackers,
 	const std::vector<Detection> &dets,
@@ -22,10 +23,10 @@ private:
         float max_iou_distance_ = 0;
         int max_age_ = 0;
         int n_init_ = 0;
-        
-        
+
+
         int _next_id_ = 0;
-public:    
+public:
     TTracker(float max_iou_distance=0.7, int max_age=30, int n_init=3){
         max_iou_distance_ = max_iou_distance;
         max_age_ = max_age;
@@ -53,23 +54,29 @@ public:
             std::pair<int, int> pa = rr.matches[i];
             int track_idx = pa.first;
             int detection_idx = pa.second;
-            kalmanTrackers_[track_idx]->update(*KF::Instance(), 
+            kalmanTrackers_[track_idx]->update(*KF::Instance(),
                                 detections[detection_idx]);
         }
-        //# -unmatches(track)    
+        //# -unmatches(track)
         for(int i = 0; i < rr.unmatched_tracks.size(); i++){
             int track_idx = rr.unmatched_tracks[i];
             kalmanTrackers_[track_idx]->mark_missed();
-        }
-        //# -unmatches(detect)    
+#ifdef LOG
+						std::cout << "track update:rr.unmatched_tracks[i]:" << rr.unmatched_tracks[i] << '\n';
+#endif
+				}
+        //# -unmatches(detect)
         for(int i = 0; i < rr.unmatched_detections.size(); i++){
             int detection_idx = rr.unmatched_detections[i];
             int id = this->_NewTrack(detections[detection_idx]);
 		re.news_.insert(std::make_pair(id, detections[detection_idx].oriPos_));
-        }
-        
+#ifdef LOG
+						 std::cout << "track update:rr.unmatched_detections[i]:" <<  rr.unmatched_detections[i] <<  '\n';
+#endif
+				}
+
 	int64_t uptm4 = line_gtm();
-        
+
 		std::vector<KalmanTracker>::iterator it;
 		while (1) {
 			bool cn = false;
@@ -96,7 +103,7 @@ public:
                 active_ids.push_back(t->track_id);
             }
         }
-        
+
 	int64_t uptm5 = line_gtm();
 		int featureCount = 0;
         IDS ids;
@@ -107,7 +114,7 @@ public:
 			std::vector<FEATURE> &fts = t->features_;
 			featureCount += fts.size();
 			//ids += [kalmanTrack.track_id_ for _ in kalmanTrack.features_]
-			// ¾ÍÊÇÕâ¸öÒâË¼ 
+			// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë¼
 			for (int kk = 0; kk < fts.size(); kk++) {
 				ids.push_back(t->track_id);
 			}
@@ -130,47 +137,64 @@ public:
 		NearestNeighborDistanceMetric::Instance()->partial_fit(
 			features, ids, active_ids);
 	int64_t uptm7 = line_gtm();
-	std::cout << "up----uptm2-uptm1:" << (uptm2-uptm1) << 
-			", uptm3-uptm1:" << uptm3-uptm1 << 
-			", uptm4-uptm1:" << (uptm4-uptm1) << 
-			", uptm5-uptm1:" << (uptm5-uptm1) << 
-			", uptm6-uptm1:" << (uptm6-uptm1) << "\n";
+
+	// std::cout << "up----uptm2-uptm1:" << (uptm2-uptm1) <<
+	// 		", uptm3-uptm1:" << uptm3-uptm1 <<
+	// 		", uptm4-uptm1:" << (uptm4-uptm1) <<
+	// 		", uptm5-uptm1:" << (uptm5-uptm1) <<
+	// 		", uptm6-uptm1:" << (uptm6-uptm1) << "\n";
 	return re;
     }
-    
-private:        
+
+private:
     RR _match(const std::vector<Detection> &detections){
 	int64_t mtm1 = line_gtm();
         //Split track set into confirmed and unconfirmed kalmanTrackers.
         IDS confirmed_trackIds;
         IDS unconfirmed_trackIds;
         for(int i = 0; i < kalmanTrackers_.size(); i++){
-            KalmanTracker t = kalmanTrackers_[i]; 
+            KalmanTracker t = kalmanTrackers_[i];
             if(t->is_confirmed()){
                 confirmed_trackIds.push_back(i);
-            }
+#ifdef LOG
+								 std::cout << "_match:confirmed_trackIds:" << i << '\n';
+#endif
+						}
             else{
                 unconfirmed_trackIds.push_back(i);
+#ifdef LOG
+								std::cout << "_match:unconfirmed_trackIds:" << i << '\n';
+#endif
             }
         }
-        
-        //# Associate confirmed kalmanTrackers using appearance features.
+#ifdef LOG
+				std::cout << "-------------------------In Matching Cascade-------------------" << '\n';
+#endif
+				//# Associate confirmed kalmanTrackers using appearance features.
         RR rr = linear_assignment::matching_cascade(
-                getCostMatrixByNND, 
-                NearestNeighborDistanceMetric::Instance()->matching_threshold(), 
+                getCostMatrixByNND,
+                NearestNeighborDistanceMetric::Instance()->matching_threshold(),
                 max_age_,
-                kalmanTrackers_, 
-                detections, 
+                kalmanTrackers_,
+                detections,
                 &confirmed_trackIds);
         std::vector<std::pair<int, int> > matches_a = rr.matches;
         IDS unmatched_tracks_a = rr.unmatched_tracks;
         IDS unmatched_detections = rr.unmatched_detections;
-        
-	int64_t mtm2 = line_gtm();
+#ifdef LOG
+				std::cout << "matches_a:" << rr.matches.size() << '\n';
+				for (size_t i = 0; i < unmatched_tracks_a.size(); i++) {
+					 std::cout << "unmatched_tracks_a: " << unmatched_tracks_a[i] <<'\n';
+				}
+				for (size_t i = 0; i < unmatched_detections.size(); i++) {
+					 std::cout << "unmatched_detections afer matching_cascade: " << unmatched_detections[i] <<'\n';
+				}
+#endif
+				int64_t mtm2 = line_gtm();
 
         //# Associate remaining kalmanTrackers together with unconfirmed kalmanTrackers using IOU.
         IDS iou_track_candidateIds, tmp;
-        std::copy(unconfirmed_trackIds.begin(), 
+        std::copy(unconfirmed_trackIds.begin(),
                     unconfirmed_trackIds.end(),
                     std::back_inserter(iou_track_candidateIds));
         for(int k = 0; k < unmatched_tracks_a.size(); k++){
@@ -182,52 +206,69 @@ private:
                 tmp.push_back(id);
             }
         }
+				for (size_t i = 0; i < iou_track_candidateIds.size(); i++) {
+#ifdef LOG					/* code */
+					 std::cout << "iou_track_candidateIds:" << iou_track_candidateIds[i] << '\n';
+#endif
+				}
         unmatched_tracks_a.clear();
         unmatched_tracks_a = tmp;
-        
+
 	int64_t mtm3 = line_gtm();
-        //
+#ifdef LOG        //
+				std::cout << "--------------In min_cost_matching - IOU ---------------------------" << '\n';
+#endif
         RR rr1 = linear_assignment::min_cost_matching(
-                iou_matching::getCostMatrixByIOU, 
-                max_iou_distance_, 
+                iou_matching::getCostMatrixByIOU,
+                max_iou_distance_,
                 kalmanTrackers_,
-                detections, 
-                &iou_track_candidateIds, 
+                detections,
+                &iou_track_candidateIds,
                 &unmatched_detections);
+
         std::vector<std::pair<int, int> > matches_b = rr1.matches;
         IDS unmatched_tracks_b = rr1.unmatched_tracks;
         unmatched_detections = rr1.unmatched_detections;
-                
-	int64_t mtm4 = line_gtm();
+#ifdef LOG
+				std::cout << "matches_b:" << rr1.matches.size() << '\n';
+				for (size_t i = 0; i < unmatched_tracks_b.size(); i++) {
+					/* code */
+					 std::cout << "unmatched_tracks_b: " << unmatched_tracks_b[i] <<'\n';
+				}
+				for (size_t i = 0; i < unmatched_detections.size(); i++) {
+					/* code */
+					 std::cout << "unmatched_detections:  " << unmatched_detections[i] <<'\n';
+				}
+#endif
+
+				int64_t mtm4 = line_gtm();
         // all
         RR re;
         re.matches = matches_a;
-        std::copy(matches_b.begin(), matches_b.end(),
-                    std::back_inserter(re.matches));
+        std::copy(matches_b.begin(), matches_b.end(),std::back_inserter(re.matches));
         re.unmatched_detections = unmatched_detections;
         re.unmatched_tracks = unmatched_tracks_a;
         std::copy(unmatched_tracks_b.begin(),
                     unmatched_tracks_b.end(),
                     std::back_inserter(re.unmatched_tracks));
-	int64_t mtm5 = line_gtm();
-	std::cout << "match----mtm2-mtm1:" << (mtm2-mtm1) << 
-			", mtm3-mtm1:" << (mtm3-mtm1) << 
-			", mtm4-mtm1:" << (mtm4-mtm1) <<
-			", mtm5-mtm1:" << (mtm5-mtm1) << "\n";
+				int64_t mtm5 = line_gtm();
+	// std::cout << "match----mtm2-mtm1:" << (mtm2-mtm1) <<
+	// 		", mtm3-mtm1:" << (mtm3-mtm1) <<
+	// 		", mtm4-mtm1:" << (mtm4-mtm1) <<
+	// 		", mtm5-mtm1:" << (mtm5-mtm1) << "\n";
         return re;
-    }    
+    }
 
     int _NewTrack(const Detection &detection){
-	int id = _next_id_;
-        std::pair<MEAN, VAR>  pa = 
-                    KF::Instance()->initiate(detection.to_xyah());
-	KalmanTracker newt(new KalmanTrackerN(
+			int id = _next_id_;
+      std::pair<MEAN, VAR>  pa = KF::Instance()->initiate(detection.to_xyah());
+			KalmanTracker newt(new KalmanTrackerN(
             pa.first, pa.second, _next_id_, n_init_, max_age_,
             detection.feature_, true, detection.oriPos_));
-        kalmanTrackers_.push_back(newt);/*new KalmanTracker(
+      kalmanTrackers_.push_back(newt);/*new KalmanTracker(
             pa.first, pa.second, _next_id_, n_init_, max_age_,
             detection.feature_, true, detection.oriPos_));*/
-        _next_id_ += 1;
+      _next_id_ += 1;
 	return id;
     }
 };
@@ -252,23 +293,12 @@ DYNAMICM getCostMatrixByNND(const std::vector<KalmanTracker> &kalmanTrackers,
 	DYNAMICM cost_matrix =
 		NearestNeighborDistanceMetric::Instance()->distance(features, ids);
 	int64_t gtm2 = line_gtm();
-	cost_matrix = linear_assignment::gate_cost_matrix(
-		*KF::Instance(), cost_matrix, kalmanTrackers, dets, track_indices,
-		detection_indices);
+	//cost_matrix = linear_assignment::gate_cost_matrix(
+	//	*KF::Instance(), cost_matrix, kalmanTrackers, dets, track_indices,
+	//	detection_indices);
 	int64_t gtm3 = line_gtm();
-	std::cout << "getCostMatrixByNND----gtm2-gtm1:" << (gtm2-gtm1) <<
-			", gtm3-gtm1:" << (gtm3-gtm1) << "\n";
+	// std::cout << "getCostMatrixByNND----gtm2-gtm1:" << (gtm2-gtm1) <<
+	// 		", gtm3-gtm1:" << (gtm3-gtm1) << "\n";
 	return cost_matrix;
 }
 #endif
-
-
-
-
-
-
-
-
-
-
-

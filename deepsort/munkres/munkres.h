@@ -27,7 +27,7 @@
 #include <iostream>
 #include <cmath>
 #include <limits>
-
+// #define DEBUG
 
 template<typename Data> class Munkres
 {

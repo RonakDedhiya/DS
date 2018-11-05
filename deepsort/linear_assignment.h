@@ -43,14 +43,14 @@ class linear_assignment{
 public:
     static RR min_cost_matching(
             const GetCostMarixFun &getCostMarixFun, float max_distance,
-        const std::vector<KalmanTracker> &tracks, 
-        const std::vector<Detection> &detections, 
+        const std::vector<KalmanTracker> &tracks,
+        const std::vector<Detection> &detections,
         IDS *track_indicesi=NULL,
         IDS *detection_indicesi=NULL){
 		int64_t mintm1 = line_gtm();
 		IDS track_indices;
 		IDS detection_indices;
-		if (track_indicesi == NULL) {
+		if ( track_indicesi == NULL) {
 			for (int i = 0; i < tracks.size(); i++) {
 				track_indices.push_back(i);
 			}
@@ -68,17 +68,19 @@ public:
 			detection_indices = *detection_indicesi;
 		}
 
-        if (detection_indices.empty() || track_indices.empty()) {
-            RR rr;
-            rr.unmatched_tracks = track_indices;
-            rr.unmatched_detections = detection_indices;
-            return rr;
-        }
+    if (detection_indices.empty() || track_indices.empty()) {
+        RR rr;
+        rr.unmatched_tracks = track_indices;
+        rr.unmatched_detections = detection_indices;
+        return rr;
+    }
 	int64_t mintm2 = line_gtm();
         // 5x5
-        DYNAMICM cost_matrix = getCostMarixFun(
-            tracks, detections, &track_indices, &detection_indices);
-		//std::cout << "\n----mmmmm----\n" << cost_matrix << "\n----vvvvv-----\n" << std::endl;
+    DYNAMICM cost_matrix = getCostMarixFun(tracks, detections, &track_indices, &detection_indices);
+#ifdef LOG
+		std::cout << "In min_cost_matching:" << '\n';
+		std::cout << "\n----mmmmm----\n" << cost_matrix << "\n----vvvvv-----\n" << std::endl;
+#endif
 		for (int i = 0; i < cost_matrix.rows(); i++) {
 			for (int j = 0; j < cost_matrix.cols(); j++) {
 				float tmp = cost_matrix(i, j);
@@ -88,7 +90,9 @@ public:
 			}
 		}
 	int64_t mintm3 = line_gtm();
-		//std::cout << "\n----222mmmmm----\n" << cost_matrix << "\n----222vvvvv-----\n" << std::endl;
+#ifdef LOG
+		std::cout << "\n----222mmmmm----\n" << cost_matrix << "\n----222vvvvv-----\n" << std::endl;
+#endif
 		//Eigen::Matrix<float, -1, 2> indices = KF::Instance()->LinearAssignmentForCpp(cost_matrix);
 		Eigen::Matrix<float, -1, 2> indices =
 			HungarianOper::Solve(cost_matrix);
@@ -98,7 +102,7 @@ public:
         // (-1, 2)
 
         RR rr;
-        // ÊÇ·ñÔÚµÚ2ÁÐ
+        // ï¿½Ç·ï¿½ï¿½Úµï¿½2ï¿½ï¿½
         for (int col = 0; col < detection_indices.size(); col++) {
             // check if col is in indecis[:,1]
             bool isIn = false;
@@ -114,7 +118,7 @@ public:
                 rr.unmatched_detections.push_back(detection_idx);
             }
         }
-        // ÊÇ·ñÔÚµÚ1ÁÐ
+        // ï¿½Ç·ï¿½ï¿½Úµï¿½1ï¿½ï¿½
         for (int row = 0; row < track_indices.size(); row++) {
             // check of row is in indecis[:,0]
             bool isIn = false;
@@ -148,10 +152,10 @@ public:
             //}
         }
 	int64_t mintm5 = line_gtm();
-	std::cout << "min_cost_matching----mintm2-mintm1:" << (mintm2-mintm1) <<
-			", mintm3-mintm1:" << (mintm3-mintm1) << 
-			", mintm4-mintm1:" << (mintm4-mintm1) << 
-			", mintm5-mintm1:" << (mintm5-mintm1) << "\n";
+	// std::cout << "min_cost_matching----mintm2-mintm1:" << (mintm2-mintm1) <<
+	// 		", mintm3-mintm1:" << (mintm3-mintm1) <<
+	// 		", mintm4-mintm1:" << (mintm4-mintm1) <<
+	// 		", mintm5-mintm1:" << (mintm5-mintm1) << "\n";
         return rr;
     }
 
@@ -173,8 +177,10 @@ public:
 		else {
 			track_indices = *track_indicesi;
 		}
-
-        if (detection_indicesi == NULL) {
+#ifdef LOG
+			std::cout << "cascade: track_len: " << track_indices.size() << '\n';
+#endif
+				if (detection_indicesi == NULL) {
 			for (int i = 0; i < detections.size(); i++) {
 				detection_indices.push_back(i);
 			}
@@ -182,11 +188,14 @@ public:
 		else {
 			detection_indices = *detection_indicesi;
 		}
+#ifdef LOG
+	std::cout << "cascade:detection_len: " << detection_indices.size() << '\n';
+#endif
         RR re;
         std::map<int, int> tmpMap;
         IDS unmatched_detections = detection_indices;
         for (int level = 0; level < cascade_depth; level++) {
-		int64_t ctm1 = line_gtm();
+						int64_t ctm1 = line_gtm();
             if (unmatched_detections.empty()) {
                 break;
             }
@@ -194,6 +203,9 @@ public:
             for (int k = 0; k < track_indices.size(); k++) {
                 if (tracks[k]->time_since_update_ == level + 1) {
                     track_indices_l.push_back(track_indices[k]);
+#ifdef LOG
+										std::cout << "level: " << level << "track_indices_l: "<< track_indices[k] << '\n';
+#endif
                 }
             }
             if (track_indices_l.empty()) {
@@ -203,13 +215,21 @@ public:
                 getCostMarixFun, max_distance, tracks, detections,
                 &track_indices_l, &unmatched_detections);
             unmatched_detections = rr.unmatched_detections;
-            for (int i = 0; i < rr.matches.size(); i++) {
+#ifdef LOG
+						for (size_t i = 0; i < unmatched_detections.size(); i++) {
+							/* code */
+							std::cout << "iou:unmatched_detections: " << unmatched_detections[i] <<'\n';
+
+						}
+						std::cout << "iou:matches size:" << rr.matches.size() << '\n';
+#endif
+			      for (int i = 0; i < rr.matches.size(); i++) {
                 std::pair<int, int> pa = rr.matches[i];
                 re.matches.push_back(pa);
                 tmpMap.insert(pa);
             }
-		int64_t ctm2 = line_gtm();
-		std::cout << "cascade("<< level << ")----ctm2-ctm1:" << (ctm2-ctm1) << "\n";
+						int64_t ctm2 = line_gtm();
+	 					//std::cout << "cascade("<< level << ")----ctm2-ctm1:" << (ctm2-ctm1) << "\n";
         }
         re.unmatched_detections = unmatched_detections;
         for (int i = 0; i < track_indices.size(); i++) {
@@ -220,39 +240,40 @@ public:
             }
         }
 	int64_t ctm4 = line_gtm();
-	std::cout << "cascade----ctm4-ctm0:" << (ctm4-ctm0) << "\n";
+	// std::cout << "cascade----ctm4-ctm0:" << (ctm4-ctm0) << "\n";
         return re;
     }
 
     static DYNAMICM gate_cost_matrix(
         const KF &kalmanFilter,
-        DYNAMICM &cost_matrix, 
+        DYNAMICM &cost_matrix,
         const std::vector<KalmanTracker> &tracks,
         const std::vector<Detection> &detections,
         IDS track_indices,
         IDS detection_indices,
-        int gated_cost=INFTY_COST, 
+        int gated_cost=INFTY_COST,
         bool only_position=false){
-        int gating_dim = only_position ? 2 : 4;
-		float gating_threshold = chi2inv95[gating_dim];
+
+				int gating_dim = only_position ? 2 : 4;
+				float gating_threshold = chi2inv95[gating_dim];
         DSBOXS measurements(detection_indices.size(), 4);
         for (int i = 0; i < detection_indices.size(); i++) {
             int pos = detection_indices[i];
-			DSBOX tmp = detections[pos].to_xyah();
-			measurements.row(i) = tmp;
+						DSBOX tmp = detections[pos].to_xyah();
+						measurements.row(i) = tmp;
         }
         for (int row = 0; row < track_indices.size(); row++) {
             int track_idx = track_indices[row];
             KalmanTracker track = tracks[track_idx];
-			// gating_distance is a vector
-			Eigen::Matrix<float, 1, -1> gating_distance = kalmanFilter.gating_distance(
+						// gating_distance is a vector
+						Eigen::Matrix<float, 1, -1> gating_distance = kalmanFilter.gating_distance(
                 track->mean_, track->covariance_, measurements, only_position);
-			for (int i = 0; i < gating_distance.cols(); i++) {
-					if (gating_distance(0, i) > gating_threshold) {
-						cost_matrix(row, i) = gated_cost;
-					}
-			}
-			//std::cout << "\nb--ggg\n" << cost_matrix << "\e--ggg\n";
+						for (int i = 0; i < gating_distance.cols(); i++) {
+							if (gating_distance(0, i) > gating_threshold) {
+								cost_matrix(row, i) = gated_cost;
+							}
+						}
+						std::cout << "\nb--ggg\n" << cost_matrix << "\e--ggg\n";
         }
         return cost_matrix;
     }

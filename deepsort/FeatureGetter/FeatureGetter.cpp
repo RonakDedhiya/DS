@@ -102,60 +102,76 @@ typedef std::vector<IDSR> IDSRS;
 
         std::vector<std::string> node_names;
         for (const auto &node : graph_def.node()) {
-		printf("node name:%s\n", node.name().c_str());
+						//printf("node name:%s\n", node.name().c_str());
             node_names.push_back(node.name());
         }
-        
+
 		return true;
 	}
 	bool FeatureGetter::Get(const cv::Mat &img, const std::vector<cv::Rect> &rcs,
 		std::vector<FFEATURE> &fts) {
         std::vector<cv::Mat> mats;
         for(cv::Rect rc:rcs){
+
+						float new_width = 0.5 * rc.height;
+						rc.x = rc.x -( (new_width - rc.width) / 2 );
+				    rc.width = new_width;
+
+						//pre-Processing
+						rc.width = rc.x +rc.width;
+						rc.height = rc.y + rc.height;
+
+						rc.x = std::max(0,rc.x);
+						rc.y = std::max(0,rc.y);
+						rc.width = std::min(img.cols,rc.width);
+						rc.height = std::min(img.rows,rc.height);
+
+						rc.width = rc.width - rc.x;
+						rc.height = rc.height - rc.y;
             cv::Mat mat1 = img(rc).clone();
             cv::resize(mat1, mat1, cv::Size(64, 128));
+						// cv::imshow("mat1",mat1);
+						// cv::waitKey(1);
             mats.push_back(mat1);
         }
         int count = mats.size();
-        
-        tensorflow::Tensor input_tensor0(tensorflow::DT_UINT8, { count, 128, 64, 3 });
-        tobuffer(mats, input_tensor0.flat<uint8>().data());
 
-        std::vector<tensorflow::Tensor> output_tensors;
+				for (size_t i = 0; i < count; i++) {
+					tensorflow::Tensor input_tensor0(tensorflow::DT_UINT8, { 1, 128, 64, 3 });
+					tobuffer(mats[i], input_tensor0.flat<uint8>().data());
 
-        std::vector<std::pair<std::string, tensorflow::Tensor>> ins;
-        std::pair<std::string, tensorflow::Tensor> pa;
-        pa.first = "Placeholder";
-        pa.second = input_tensor0;
-        ins.push_back(pa);
-        std::vector<std::string> outnames;
-        outnames.push_back("truediv");
-        std::vector<std::string> ts;
-	int64_t ftm1 = fgtm();	
-        auto status = session->Run(
-            ins,
-            outnames,
-            ts,
-            &output_tensors);
-	int64_t ftm2 = fgtm();
-	std::cout << "session.run----rcs.size():" << rcs.size() << ", ftm2-ftm1:" << (ftm2-ftm1) << "\n";
-        if (!status.ok()) {
-            printf("error 3%s \n", status.ToString().c_str());
-            return false;
-        }
-        float *tensor_buffer = 
-            output_tensors[0].flat<float>().data();
-        int len = output_tensors[0].flat<float>().size() / count;
-        for (int i = 0; i < count; i++) {
-            //printf("begin====\n");
-			FFEATURE ft;
-            for (int j = 0; j < len; j++) {
-				ft(j) = tensor_buffer[i*len + j];
-                //printf(",%f", tensor_buffer[i*len+j]);
-            }
-			fts.push_back(ft);
-            //printf("\nend====\n");
-        }            
+					std::vector<tensorflow::Tensor> output_tensor;
+					std::vector<std::pair<std::string, tensorflow::Tensor>> ins;
+					std::pair<std::string, tensorflow::Tensor> pa;
+					pa.first = "images";
+					pa.second = input_tensor0;
+					ins.push_back(pa);
+					std::vector<std::string> outnames;
+					outnames.push_back("features");
+					std::vector<std::string> ts;
+					int64_t ftm1 = fgtm();
+					// printf("tensor shape",input_tensor0.dims());
+					auto status = session->Run(
+						ins,
+						outnames,
+						ts,
+						&output_tensor);
+						if (!status.ok()) {
+							printf("error 3%s \n", status.ToString().c_str());
+							return false;
+						}
+						float *tensor_buffer = output_tensor[0].flat<float>().data();
+						FFEATURE ft;
+						// std::cout << "begin ---->" << '\n';
+			      for (int j = 0; j < 128; j++) {
+							ft(j) = tensor_buffer[j];
+			        // printf(",%f", tensor_buffer[j]);
+			      }
+						// std::cout << "End --->" << '\n';
+						fts.push_back(ft);
+
+				}
+
 		return true;
 	}
 		#endif
