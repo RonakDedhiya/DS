@@ -44,9 +44,9 @@ typedef unsigned char uint8;
 
 std::unique_ptr<tf::Session> session;
 
-void tobuffer(const std::vector<cv::Mat> &imgs, uint8 *buf) {
+void tobuffer(const cv::Mat &img, uint8 *buf) {
 	int pos = 0;
-	for (cv::Mat img : imgs) {
+//	for (cv::Mat img : imgs) {
 		int LLL = img.cols*img.rows * 3;
 		int nr = img.rows;
 		int nc = img.cols;
@@ -65,7 +65,7 @@ void tobuffer(const std::vector<cv::Mat> &imgs, uint8 *buf) {
 				pos++;
 			}
 		}
-	}
+//	}
 }
 
 
@@ -88,7 +88,7 @@ typedef std::vector<IDSR> IDSRS;
         //------------------
         tf::GraphDef graph_def;
 
-        auto status1 = ReadBinaryProto(tf::Env::Default(), "./data/tt1.pb", &graph_def);
+        auto status1 = ReadBinaryProto(tf::Env::Default(), "./data/mars-small128-1.4.pb", &graph_def);
         if (!status1.ok()) {
             printf("ReadBinaryProto failed: %s\n", status1.ToString().c_str());
 			return false;

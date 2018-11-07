@@ -123,7 +123,7 @@ void CB(cv::Mat &frame, int num, std::string filename){
 	(*_vw) << frame;
 	if(_isShow){
 		std::string disp = "frame";
-		cv::resize(mm, mm, cv::Size(mm.cols/2, mm.rows/2));
+		//cv::resize(mm, mm, cv::Size(mm.cols/2, mm.rows/2));
 		cv::resize(frame, frame, cv::Size(frame.cols/2, frame.rows/2));
 		// cv::imshow("mm", mm);
 		cv::imshow(disp, frame);
